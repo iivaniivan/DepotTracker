@@ -1,39 +1,40 @@
 import streamlit as st
-import pandas as pd
+import gspread
+from google.oauth2.service_account import Credentials
 from datetime import datetime
 
-st.title("Depot Tracker - Quartalsweise Eingaben")
+# Google Sheets Setup
+SCOPE = ["https://www.googleapis.com/auth/spreadsheets"]
+creds = Credentials.from_service_account_file("depottracker-key.json", scopes=SCOPE)
+client = gspread.authorize(creds)
 
-# Beispiel-Depots
-depots = ["3a Yvan – VZ","3a Yvan – Finpension","3a Vanessa - Frankly","ETF Yvan – VZ","ETF Yvan - True Wealth"]
+# Google Sheet öffnen
+SHEET_NAME = "Depot Tracker"  # <- passe an deinen Sheet-Namen an
+sheet = client.open(SHEET_NAME).sheet1
 
-# Eingabeformular
+# Streamlit UI
+st.title("Depot Tracker")
+st.write("Willkommen zu deinem Depot-Tracker!")
+
+depots = [
+    "3a Yvan – VZ",
+    "3a Yvan – Finpension",
+    "3a Vanessa - Frankly",
+    "ETF Yvan – VZ",
+    "ETF Yvan - True Wealth"
+]
+
 with st.form(key="depot_form"):
     depot = st.selectbox("Depot auswählen", depots)
     datum = st.date_input("Datum auswählen")
-    datum_schweizer_format = datum.strftime("%d-%m-%Y")  # TT-MM-JJJJ
     einzahlungen = st.number_input("Einzahlungen Total (CHF)", min_value=0.0, format="%.2f")
     kontostand = st.number_input("Kontostand Total (CHF)", min_value=0.0, format="%.2f")
+    
+    submit_button = st.form_submit_button(label="Eintrag speichern")
 
-    submit = st.form_submit_button("Daten speichern")
+    if submit_button:
+        datum_str = datum.strftime("%d.%m.%Y")  # z. B. 04.08.2025
 
-# Daten speichern im Session State
-if "data" not in st.session_state:
-    st.session_state.data = pd.DataFrame(columns=["Depot", "Datum", "Einzahlungen Total", "Kontostand Total"])
-
-if submit:
-    neue_zeile = {
-        "Depot": depot,
-        "Datum": datum.strftime("%d-%m-%Y"),  # TT-MM-JJJJ
-        "Einzahlungen Total": einzahlungen,
-        "Kontostand Total": kontostand,
-    }
-    st.session_state.data = st.session_state.data.append(neue_zeile, ignore_index=True)
-    st.success("Daten gespeichert!")
-
-# Tabelle anzeigen
-if not st.session_state.data.empty:
-    st.write("Bisherige Einträge:")
-    st.dataframe(st.session_state.data)
-else:
-    st.write("Noch keine Daten eingetragen.")
+        # Neue Zeile in Google Sheet schreiben
+        sheet.append_row([depot, datum_str, einzahlungen, kontostand])
+        st.success("Eintrag erfolgreich gespeichert!")
