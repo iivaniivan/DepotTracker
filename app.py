@@ -70,7 +70,6 @@ with tab2:
     # Daten laden
     rows = sheet.get_all_records()
     df = pd.DataFrame(rows)
-    st.write(df.columns.tolist())
     df.columns = df.columns.str.strip()
 
 
