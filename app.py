@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import datetime
 
-# Zugangsschutz (empfohlen via secrets.toml)
+# Einfacher Login
 def check_login():
     st.sidebar.title("🔒 Login erforderlich")
     username_input = st.sidebar.text_input("Benutzername")
@@ -19,30 +19,50 @@ check_login()
 
 st.title("Depot-Tracker 📈")
 
+# Initialisiere leeren DataFrame in session_state (wenn nicht vorhanden)
+if "daten" not in st.session_state:
+    st.session_state.daten = pd.DataFrame(columns=["Depot", "Datum", "Kontostand Total (CHF)", "Einzahlungen Total (CHF)"])
+
+# Tab 1: Neue Werte eingeben mit Dropdown
 tab1, tab2 = st.tabs(["Neue Werte eingeben", "Depotentwicklung & Kennzahlen"])
 
-# --- TAB 1: Nur Eingabe, keine Datei-Upload ---
 with tab1:
     st.header("Neue Werte erfassen")
 
-    # Beispiel: Manuelle Eingabe von Daten (du kannst hier dein Eingabeformular anpassen)
-    depot = st.text_input("Depotname")
+    # Dropdown Depot aus vorhandenen oder neue Eingabe
+    existierende_depots = st.session_state.daten["Depot"].unique().tolist()
+    depot = st.selectbox("Depot auswählen oder neu eingeben", options=existierende_depots + ["-- Neues Depot --"])
+
+    if depot == "-- Neues Depot --":
+        depot = st.text_input("Neuer Depotname")
+
     datum = st.date_input("Datum", datetime.date.today())
     kontostand = st.number_input("Kontostand Total (CHF)", min_value=0.0, format="%.2f")
     einzahlungen_total = st.number_input("Einzahlungen Total (CHF)", min_value=0.0, format="%.2f")
 
     if st.button("Daten speichern"):
-        # Hier kannst du speichern, z.B. in einer Datenbank, Datei oder irgendwo anders
-        st.success(f"Wert für Depot '{depot}' am {datum} mit Kontostand CHF {kontostand} und Einzahlungen CHF {einzahlungen_total} wurde gespeichert.")
-        # Hinweis: Aktuell speichert das nichts persistent, das musst du noch implementieren.
+        if not depot:
+            st.error("Bitte Depotnamen angeben.")
+        else:
+            # Neue Zeile zum DataFrame hinzufügen
+            neue_zeile = pd.DataFrame({
+                "Depot": [depot],
+                "Datum": [pd.to_datetime(datum)],
+                "Kontostand Total (CHF)": [kontostand],
+                "Einzahlungen Total (CHF)": [einzahlungen_total]
+            })
+            # Daten an existing DataFrame anhängen und sortieren
+            st.session_state.daten = pd.concat([st.session_state.daten, neue_zeile], ignore_index=True)
+            st.session_state.daten = st.session_state.daten.sort_values(by=["Depot", "Datum"]).reset_index(drop=True)
+            st.success(f"Wert für Depot '{depot}' am {datum} gespeichert.")
 
-# --- TAB 2: Auswertung mit CSV-Upload ---
 with tab2:
     st.header("📊 Depotentwicklung & Kennzahlen")
 
-    uploaded_file = st.file_uploader("📤 CSV für Auswertung hochladen", type=["csv"])
-    if uploaded_file:
-        df = pd.read_csv(uploaded_file, parse_dates=["Datum"])
+    if st.session_state.daten.empty:
+        st.warning("Noch keine Daten vorhanden. Bitte im Tab 'Neue Werte eingeben' Daten hinzufügen.")
+    else:
+        df = st.session_state.daten.copy()
         df["Datum"] = pd.to_datetime(df["Datum"])
         df = df.sort_values("Datum")
 
@@ -66,7 +86,7 @@ with tab2:
         # KPIs
         st.subheader("🔢 Kennzahlen pro Depot")
 
-        for depot in df["Depot"].unique():
+        for depot in depots:
             df_depot = df[df["Depot"] == depot].sort_values("Datum")
 
             df_depot["Einzahlung pro Zeile"] = df_depot["Einzahlungen Total (CHF)"].diff().fillna(df_depot["Einzahlungen Total (CHF)"])
