@@ -47,19 +47,33 @@ with tab1:
             # Neue Zeile in Google Sheet schreiben
             sheet.append_row([depot, datum_str, einzahlungen, kontostand])
             st.success("Eintrag erfolgreich gespeichert!")
-
 import altair as alt
+import numpy as np
+import streamlit as st
+import pandas as pd
 
 with tab2:
     st.title("Depot Tracker Übersicht")
 
-    records = sheet.get_all_records()
+    try:
+        records = sheet.get_all_records()
+    except Exception as e:
+        st.error(f"Fehler beim Laden der Daten: {e}")
+        records = []
+
     if records:
         df = pd.DataFrame(records)
         df = df.sort_values(by="Datum", ascending=True)
 
-        # Datum in datetime konvertieren
-        df["Datum"] = pd.to_datetime(df["Datum"], format="%d.%m.%Y")
+        try:
+            # Datum in datetime konvertieren
+            df["Datum"] = pd.to_datetime(df["Datum"], format="%d.%m.%Y", errors='coerce')
+        except Exception as e:
+            st.error(f"Fehler bei der Datumskonvertierung: {e}")
+
+        if df["Datum"].isnull().any():
+            st.warning("Es gibt ungültige Datumsangaben, diese werden ignoriert.")
+            df = df.dropna(subset=["Datum"])
 
         # Quartalsspalte Q1/25 etc.
         df["Quartal"] = df["Datum"].dt.to_period("Q").astype(str)
@@ -81,16 +95,16 @@ with tab2:
                 .reset_index()
             )
 
-            # Chart mit Altair: Y-Achse invertieren + X-Achse nach Quartal (zeitlich sortiert)
-            # Reihenfolge Quartale extrahieren und sortieren
-            quartale_sort = sorted(
-    df_q["Quartal_kurz"].unique(),
-    key=lambda x: (
-        int(x[1]),                # Q1/25 -> 1
-        int("20" + x[-2:])       # Q1/25 -> 2025
-    ),
-)
+            # Sortiere Quartale korrekt: Q1=1, Jahr 25=2025 etc.
+            def quartal_sort_key(x):
+                try:
+                    quartal_num = int(x[1])       # "Q1/25" -> 1
+                    jahr_num = int("20" + x[-2:]) # "Q1/25" -> 2025
+                    return (jahr_num, quartal_num)
+                except Exception:
+                    return (9999, 99)  # Schlecht formatierte Werte ans Ende
 
+            quartale_sort = sorted(df_q["Quartal_kurz"].unique(), key=quartal_sort_key)
 
             chart = (
                 alt.Chart(df_q)
@@ -112,6 +126,8 @@ with tab2:
                 .properties(width=700, height=400)
             )
             st.altair_chart(chart, use_container_width=True)
+        else:
+            st.info("Bitte mindestens ein Depot auswählen.")
 
         st.markdown("---")
         st.header("KPIs pro Depot und Jahr")
@@ -122,14 +138,18 @@ with tab2:
         for depot in depots_unique:
             df_depot = df[df["Depot"] == depot].sort_values(by="Datum")
 
+            if df_depot.empty:
+                st.warning(f"Keine Daten für Depot '{depot}'.")
+                continue
+
             einzahlungen_total = df_depot["Einzahlungen Total (CHF)"].sum()
             letzter_kontostand = df_depot["Kontostand Total (CHF)"].iloc[-1]
             erstes_datum = df_depot["Datum"].iloc[0]
             letztes_datum = df_depot["Datum"].iloc[-1]
             jahre = (letztes_datum - erstes_datum).days / 365.25
 
-            # Sicher prüfen, ob Werte vorhanden
-            if pd.isna(einzahlungen_total) or einzahlungen_total == 0:
+            # Rendite total berechnen mit Absicherung gegen Division durch 0
+            if einzahlungen_total is None or einzahlungen_total == 0 or pd.isna(einzahlungen_total):
                 rendite_total = np.nan
             else:
                 rendite_total = (letzter_kontostand - einzahlungen_total) / einzahlungen_total
@@ -141,10 +161,11 @@ with tab2:
 
             aktuelles_jahr = letztes_datum.year
             df_ytd = df_depot[df_depot["Datum"].dt.year == aktuelles_jahr]
+
             einzahlungen_ytd = df_ytd["Einzahlungen Total (CHF)"].sum()
             kontostand_ytd = df_ytd["Kontostand Total (CHF)"].iloc[-1] if not df_ytd.empty else np.nan
 
-            if pd.isna(einzahlungen_ytd) or einzahlungen_ytd == 0:
+            if einzahlungen_ytd is None or einzahlungen_ytd == 0 or pd.isna(einzahlungen_ytd):
                 rendite_ytd = np.nan
             else:
                 rendite_ytd = (kontostand_ytd - einzahlungen_ytd) / einzahlungen_ytd
@@ -162,7 +183,7 @@ with tab2:
                 df_jahr = df_depot[df_depot["Jahr"] == jahr]
                 kontostand_jahr = df_jahr["Kontostand Total (CHF)"].iloc[-1]
 
-                if pd.isna(einzahlungen_jahr) or einzahlungen_jahr == 0:
+                if einzahlungen_jahr is None or einzahlungen_jahr == 0 or pd.isna(einzahlungen_jahr):
                     rendite_jahr = np.nan
                 else:
                     rendite_jahr = (kontostand_jahr - einzahlungen_jahr) / einzahlungen_jahr
@@ -177,6 +198,7 @@ with tab2:
                     }
                 )
 
+            # Gesamt-KPI-Zeile
             kpi_rows.append(
                 {
                     "Depot": depot,
@@ -187,17 +209,42 @@ with tab2:
                 }
             )
 
-        kpi_df = pd.DataFrame(kpi_rows)
-
-        st.dataframe(
-            kpi_df.style.format(
+            # Zusätzlich Rendite p.a. als eigene Zeile oder Spalte einfügen, je nach Wunsch
+            kpi_rows.append(
                 {
-                    "Akk. Einzahlungen (CHF)": "{:,.2f}",
-                    "Kontostand (CHF)": "{:,.2f}",
-                    "Rendite Jahr (%)": "{:.2f}",
+                    "Depot": depot,
+                    "Jahr": "Rendite p.a.",
+                    "Akk. Einzahlungen (CHF)": None,
+                    "Kontostand (CHF)": None,
+                    "Rendite Jahr (%)": rendite_p_a * 100 if not np.isnan(rendite_p_a) else None,
                 }
             )
-        )
 
+            # Rendite YTD hinzufügen
+            kpi_rows.append(
+                {
+                    "Depot": depot,
+                    "Jahr": f"Rendite YTD {aktuelles_jahr}",
+                    "Akk. Einzahlungen (CHF)": None,
+                    "Kontostand (CHF)": kontostand_ytd,
+                    "Rendite Jahr (%)": rendite_ytd * 100 if not np.isnan(rendite_ytd) else None,
+                }
+            )
+
+        if len(kpi_rows) == 0:
+            st.warning("Keine KPIs berechnet, da keine Daten vorhanden sind.")
+        else:
+            kpi_df = pd.DataFrame(kpi_rows)
+
+            st.dataframe(
+                kpi_df.style.format(
+                    {
+                        "Akk. Einzahlungen (CHF)": "{:,.2f}",
+                        "Kontostand (CHF)": "{:,.2f}",
+                        "Rendite Jahr (%)": "{:.2f}",
+                    }
+                )
+            )
     else:
         st.info("Noch keine Einträge vorhanden.")
+
