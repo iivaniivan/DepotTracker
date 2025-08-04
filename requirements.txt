@@ -4,3 +4,5 @@ google-auth
 pandas
 matplotlib
 oauth2client
+plotly
+
