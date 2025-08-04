@@ -61,8 +61,10 @@ st.set_page_config(layout="wide")
 st.title("Depottracker")
 
 # Daten laden (Beispielhaft als CSV, anpassen bei Google Sheets oder Datenbank)
-sheet_url = "1QdIWos3OGLbeL-0LD3hUaVjcMs4vZj3XH6YHY6tdhZk"  # <-- Trage hier deinen eigenen Link ein
-df = pd.read_csv(sheet_url)
+SHEET_ID = "1QdIWos3OGLbeL-0LD3hUaVjcMs4vZj3XH6YHY6tdhZk"
+csv_export_url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
+df = pd.read_csv(csv_export_url)
+
 
 # Bereinigung der Beträge (CHF-Strings zu floats)
 def parse_chf(value):
