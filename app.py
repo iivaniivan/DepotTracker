@@ -120,7 +120,7 @@ fig.update_xaxes(
     ticklabelmode="period"
 )
 
-    fig.update_yaxes(title="Kontostand (CHF)")
+fig.update_yaxes(title="Kontostand (CHF)")
     fig.update_layout(height=500)
 
     st.plotly_chart(fig, use_container_width=True)
