@@ -97,8 +97,11 @@ with tab2:
 
     st.plotly_chart(fig, use_container_width=True)
 
-    # KPIs
+    # KPIs als Tabelle
     st.subheader("Kennzahlen pro Depot")
+
+    # Datenstruktur für alle Depots
+    kpi_list = []
 
     for depot in df["Depot"].unique():
         df_depot = df[df["Depot"] == depot].sort_values("Datum")
@@ -137,13 +140,24 @@ with tab2:
         einzahlungen_total = df_depot["Einzahlungen Total (CHF)"].iloc[-1]
         rendite_einfach = (letzter_kontostand - einzahlungen_total) / einzahlungen_total if einzahlungen_total > 0 else 0
 
-        # Anzeige mit etwas breiteren Spalten für Einzahlungen und Letzter Stand + kleinere Schrift
-        st.markdown(f"### 📊 {depot}")
-        col1, col2, col3, col4, col5 = st.columns([1.5, 1.5, 1, 1, 1])  # Breitere Spalten für col1 + col2
-        
-        # Schrift etwas kleiner durch CSS
-        col1.markdown(f"<div style='font-size:14px'>{f'Einzahlungen: CHF {einzahlungen_total:,.0f}'}</div>", unsafe_allow_html=True)
-        col2.markdown(f"<div style='font-size:14px'>{f'Letzter Stand: CHF {letzter_kontostand:,.0f}'}</div>", unsafe_allow_html=True)
-        col3.markdown(f"<div style='font-size:14px'>{f'Einfache Rendite: {rendite_einfach*100:.2f}%'}</div>", unsafe_allow_html=True)
-        col4.markdown(f"<div style='font-size:14px'>{f'Rendite total (TWR): {rendite_total*100:.2f}%'}</div>", unsafe_allow_html=True)
-        col5.markdown(f"<div style='font-size:14px'>{f'Rendite p.a. (TWR): {rendite_p_a*100:.2f}%'}</div>", unsafe_allow_html=True)
+        # In Liste speichern
+        kpi_list.append({
+            "Depot": depot,
+            "Einzahlungen (CHF)": einzahlungen_total,
+            "Letzter Stand (CHF)": letzter_kontostand,
+            "Einfache Rendite (%)": rendite_einfach * 100,
+            "Rendite total (TWR) (%)": rendite_total * 100,
+            "Rendite p.a. (TWR) (%)": rendite_p_a * 100
+        })
+
+    # DataFrame aus Liste erzeugen
+    df_kpi = pd.DataFrame(kpi_list)
+
+    # Tabelle anzeigen
+    st.dataframe(df_kpi.style.format({
+        "Einzahlungen (CHF)": "{:,.0f}",
+        "Letzter Stand (CHF)": "{:,.0f}",
+        "Einfache Rendite (%)": "{:.2f}%",
+        "Rendite total (TWR) (%)": "{:.2f}%",
+        "Rendite p.a. (TWR) (%)": "{:.2f}%"
+    }))
