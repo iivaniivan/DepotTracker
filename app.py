@@ -70,6 +70,8 @@ with tab2:
     # Daten laden
     rows = sheet.get_all_records()
     df = pd.DataFrame(rows)
+    st.write(df.columns.tolist())
+
 
     df["Einzahlungen Total (CHF)"] = pd.to_numeric(df["Einzahlungen Total (CHF)"])
     df["Kontostand Total (CHF)"] = pd.to_numeric(df["Kontostand Total (CHF)"])
