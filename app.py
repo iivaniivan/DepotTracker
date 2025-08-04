@@ -164,5 +164,4 @@ with tab2:
     "Letzter Stand (CHF)": "{:,.0f}",
     "Einfache Rendite (%)": "{:.2f}%",
     "Rendite total (TWR) (%)": "{:.2f}%",
-    "Rendite p.a. (TWR) (%)": "{:.2f}%"
-    }))
+    "Rendite p.a. (TWR) (%)": "{:.2f}%"}))
