@@ -4,7 +4,6 @@ from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
 import plotly.express as px
 
-
 # Einfacher Passwortschutz
 def check_login():
     st.sidebar.title("🔒 Login erforderlich")
@@ -98,51 +97,53 @@ with tab2:
 
     st.plotly_chart(fig, use_container_width=True)
 
-   # KPIs
-st.subheader("Kennzahlen pro Depot")
+    # KPIs
+    st.subheader("Kennzahlen pro Depot")
 
-for depot in df["Depot"].unique():
-    df_depot = df[df["Depot"] == depot].sort_values("Datum")
+    for depot in df["Depot"].unique():
+        df_depot = df[df["Depot"] == depot].sort_values("Datum")
 
-    # Einzahlung je Zeile berechnen
-    df_depot["Einzahlung pro Zeile"] = df_depot["Einzahlungen Total (CHF)"].diff().fillna(df_depot["Einzahlungen Total (CHF)"])
+        # Einzahlung je Zeile berechnen
+        df_depot["Einzahlung pro Zeile"] = df_depot["Einzahlungen Total (CHF)"].diff().fillna(df_depot["Einzahlungen Total (CHF)"])
 
-    # Zeitgewichtete Rendite berechnen (TWR)
-    renditefaktoren = []
-    for i in range(1, len(df_depot)):
-        start = df_depot.iloc[i - 1]
-        end = df_depot.iloc[i]
+        # Zeitgewichtete Rendite berechnen (TWR)
+        renditefaktoren = []
+        for i in range(1, len(df_depot)):
+            start = df_depot.iloc[i - 1]
+            end = df_depot.iloc[i]
 
-        kapital_anfang = start["Kontostand Total (CHF)"] + end["Einzahlung pro Zeile"]
-        kapital_ende = end["Kontostand Total (CHF)"]
+            kapital_anfang = start["Kontostand Total (CHF)"] + end["Einzahlung pro Zeile"]
+            kapital_ende = end["Kontostand Total (CHF)"]
 
-        if kapital_anfang > 0:
-            faktor = kapital_ende / kapital_anfang
-            renditefaktoren.append(faktor)
+            if kapital_anfang > 0:
+                faktor = kapital_ende / kapital_anfang
+                renditefaktoren.append(faktor)
 
-    if renditefaktoren:
-        twr = 1
-        for f in renditefaktoren:
-            twr *= f
-        rendite_total = twr - 1
-    else:
-        rendite_total = 0.0
+        if renditefaktoren:
+            twr = 1
+            for f in renditefaktoren:
+                twr *= f
+            rendite_total = twr - 1
+        else:
+            rendite_total = 0.0
 
-    # Annualisierte Rendite (TWR p.a.)
-    tage = (df_depot["Datum"].iloc[-1] - df_depot["Datum"].iloc[0]).days
-    jahre = tage / 365.25 if tage > 0 else 1
-    rendite_p_a = (1 + rendite_total) ** (1 / jahre) - 1 if jahre > 0 else 0
+        # Annualisierte Rendite (TWR p.a.)
+        tage = (df_depot["Datum"].iloc[-1] - df_depot["Datum"].iloc[0]).days
+        jahre = tage / 365.25 if tage > 0 else 1
+        rendite_p_a = (1 + rendite_total) ** (1 / jahre) - 1 if jahre > 0 else 0
 
-    # Einfache Rendite
-    letzter_kontostand = df_depot["Kontostand Total (CHF)"].iloc[-1]
-    einzahlungen_total = df_depot["Einzahlungen Total (CHF)"].iloc[-1]
-    rendite_einfach = (letzter_kontostand - einzahlungen_total) / einzahlungen_total if einzahlungen_total > 0 else 0
+        # Einfache Rendite
+        letzter_kontostand = df_depot["Kontostand Total (CHF)"].iloc[-1]
+        einzahlungen_total = df_depot["Einzahlungen Total (CHF)"].iloc[-1]
+        rendite_einfach = (letzter_kontostand - einzahlungen_total) / einzahlungen_total if einzahlungen_total > 0 else 0
 
-    # Anzeige
-    st.markdown(f"### 📊 {depot}")
-    col1, col2, col3, col4, col5 = st.columns(5)
-    col1.metric("Einzahlungen", f"CHF {einzahlungen_total:,.0f}")
-    col2.metric("Letzter Stand", f"CHF {letzter_kontostand:,.0f}")
-    col3.metric("Einfache Rendite", f"{rendite_einfach*100:.2f}%")
-    col4.metric("Rendite total (TWR)", f"{rendite_total*100:.2f}%")
-    col5.metric("Rendite p.a. (TWR)", f"{rendite_p_a*100:.2f}%")
+        # Anzeige mit etwas breiteren Spalten für Einzahlungen und Letzter Stand + kleinere Schrift
+        st.markdown(f"### 📊 {depot}")
+        col1, col2, col3, col4, col5 = st.columns([1.5, 1.5, 1, 1, 1])  # Breitere Spalten für col1 + col2
+        
+        # Schrift etwas kleiner durch CSS
+        col1.markdown(f"<div style='font-size:14px'>{f'Einzahlungen: CHF {einzahlungen_total:,.0f}'}</div>", unsafe_allow_html=True)
+        col2.markdown(f"<div style='font-size:14px'>{f'Letzter Stand: CHF {letzter_kontostand:,.0f}'}</div>", unsafe_allow_html=True)
+        col3.markdown(f"<div style='font-size:14px'>{f'Einfache Rendite: {rendite_einfach*100:.2f}%'}</div>", unsafe_allow_html=True)
+        col4.markdown(f"<div style='font-size:14px'>{f'Rendite total (TWR): {rendite_total*100:.2f}%'}</div>", unsafe_allow_html=True)
+        col5.markdown(f"<div style='font-size:14px'>{f'Rendite p.a. (TWR): {rendite_p_a*100:.2f}%'}</div>", unsafe_allow_html=True)
