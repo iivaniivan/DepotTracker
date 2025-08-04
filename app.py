@@ -76,11 +76,10 @@ with tab2:
     # Sortierte Quartale (optional)
     quartale_sort = sorted(df["Quartal_kurz"].unique(), key=lambda x: (int(x.split("/")[1]), int(x[1])))
 
-    # KPI-Berechnung
-    st.subheader("Kennzahlen pro Depot")
+        st.subheader("📊 Kompakte Kennzahlenübersicht")
+
     for depot in df["Depot"].unique():
         df_depot = df[df["Depot"] == depot].sort_values("Datum")
-
         letzter_kontostand = df_depot["Kontostand Total (CHF)"].iloc[-1]
         einzahlungen_total = df_depot["Einzahlungen Total (CHF)"].iloc[-1]
 
@@ -90,18 +89,31 @@ with tab2:
             rendite_total = 0.0
 
         tage = (df_depot["Datum"].iloc[-1] - df_depot["Datum"].iloc[0]).days
-        if tage > 0 and einzahlungen_total > 0:
-            jahre = tage / 365
-            rendite_p_a = ((letzter_kontostand / einzahlungen_total) ** (1 / jahre)) - 1
-        else:
-            rendite_p_a = 0.0
+        jahre = tage / 365 if tage > 0 else 0
+        rendite_p_a = ((letzter_kontostand / einzahlungen_total) ** (1 / jahre)) - 1 if jahre > 0 and einzahlungen_total > 0 else 0.0
 
-        st.markdown(f"### {depot}")
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Einzahlungen", f"CHF {einzahlungen_total:,.0f}")
-        col2.metric("Letzter Stand", f"CHF {letzter_kontostand:,.0f}")
-        col3.metric("Rendite total", f"{rendite_total*100:.2f}%")
-        col4.metric("Rendite p.a.", f"{rendite_p_a*100:.2f}%")
+        with st.expander(f"📈 {depot}"):
+            col1, col2, col3, col4 = st.columns(4)
+            col1.metric("Einzahlungen", f"CHF {einzahlungen_total:,.0f}")
+            col2.metric("Letzter Stand", f"CHF {letzter_kontostand:,.0f}")
+            col3.metric("Rendite total", f"{rendite_total*100:.2f}%")
+            col4.metric("Rendite p.a.", f"{rendite_p_a*100:.2f}%")
+
+            # 🧮 Jahresrenditen
+            df_depot['Jahr'] = df_depot['Datum'].dt.year
+            jahres_renditen = []
+            for jahr in sorted(df_depot['Jahr'].unique()):
+                df_jahr = df_depot[df_depot['Jahr'] == jahr]
+                startwert = df_jahr["Kontostand Total (CHF)"].iloc[0]
+                endwert = df_jahr["Kontostand Total (CHF)"].iloc[-1]
+                if startwert > 0:
+                    rendite = (endwert - startwert) / startwert
+                else:
+                    rendite = 0.0
+                jahres_renditen.append({"Jahr": jahr, "Rendite p.a.": f"{rendite*100:.2f}%"})
+
+            st.markdown("**📅 Jahresrenditen:**")
+            st.table(pd.DataFrame(jahres_renditen))
 
     #import pandas as pd
 import plotly.express as px
