@@ -5,7 +5,7 @@ from datetime import datetime
 st.title("Depot Tracker - Quartalsweise Eingaben")
 
 # Beispiel-Depots
-depots = ["3a Yvan – VZ","3a Yvan – Finpension","3a Vanessa - Frankly","ETF Yvan – VZ","ETF Yvan - True Wealth]
+depots = ["3a Yvan – VZ","3a Yvan – Finpension","3a Vanessa - Frankly","ETF Yvan – VZ","ETF Yvan - True Wealth"]
 
 # Eingabeformular
 with st.form(key="depot_form"):
