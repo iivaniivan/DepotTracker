@@ -2,6 +2,8 @@ import streamlit as st
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
+import numpy as np
+import altair as alt
 
 # Google Sheets API Scope
 scope = [
@@ -47,10 +49,6 @@ with tab1:
             # Neue Zeile in Google Sheet schreiben
             sheet.append_row([depot, datum_str, einzahlungen, kontostand])
             st.success("Eintrag erfolgreich gespeichert!")
-import altair as alt
-import numpy as np
-import streamlit as st
-import pandas as pd
 
 with tab2:
     st.title("Depot Tracker Übersicht")
@@ -65,11 +63,8 @@ with tab2:
         df = pd.DataFrame(records)
         df = df.sort_values(by="Datum", ascending=True)
 
-        try:
-            # Datum in datetime konvertieren
-            df["Datum"] = pd.to_datetime(df["Datum"], format="%d.%m.%Y", errors='coerce')
-        except Exception as e:
-            st.error(f"Fehler bei der Datumskonvertierung: {e}")
+        # Datum in datetime konvertieren
+        df["Datum"] = pd.to_datetime(df["Datum"], format="%d.%m.%Y", errors='coerce')
 
         if df["Datum"].isnull().any():
             st.warning("Es gibt ungültige Datumsangaben, diese werden ignoriert.")
@@ -117,7 +112,6 @@ with tab2:
                     ),
                     y=alt.Y(
                         "Kontostand Total (CHF):Q",
-                        sort="descending",  # Invertierte Y-Achse: hoch unten, tief oben
                         title="Kontostand (CHF)",
                     ),
                     color="Depot:N",
@@ -149,7 +143,7 @@ with tab2:
             jahre = (letztes_datum - erstes_datum).days / 365.25
 
             # Rendite total berechnen mit Absicherung gegen Division durch 0
-            if einzahlungen_total is None or einzahlungen_total == 0 or pd.isna(einzahlungen_total):
+            if einzahlungen_total == 0 or pd.isna(einzahlungen_total):
                 rendite_total = np.nan
             else:
                 rendite_total = (letzter_kontostand - einzahlungen_total) / einzahlungen_total
@@ -165,7 +159,7 @@ with tab2:
             einzahlungen_ytd = df_ytd["Einzahlungen Total (CHF)"].sum()
             kontostand_ytd = df_ytd["Kontostand Total (CHF)"].iloc[-1] if not df_ytd.empty else np.nan
 
-            if einzahlungen_ytd is None or einzahlungen_ytd == 0 or pd.isna(einzahlungen_ytd):
+            if einzahlungen_ytd == 0 or pd.isna(einzahlungen_ytd):
                 rendite_ytd = np.nan
             else:
                 rendite_ytd = (kontostand_ytd - einzahlungen_ytd) / einzahlungen_ytd
@@ -183,7 +177,7 @@ with tab2:
                 df_jahr = df_depot[df_depot["Jahr"] == jahr]
                 kontostand_jahr = df_jahr["Kontostand Total (CHF)"].iloc[-1]
 
-                if einzahlungen_jahr is None or einzahlungen_jahr == 0 or pd.isna(einzahlungen_jahr):
+                if einzahlungen_jahr == 0 or pd.isna(einzahlungen_jahr):
                     rendite_jahr = np.nan
                 else:
                     rendite_jahr = (kontostand_jahr - einzahlungen_jahr) / einzahlungen_jahr
@@ -209,7 +203,7 @@ with tab2:
                 }
             )
 
-            # Zusätzlich Rendite p.a. als eigene Zeile oder Spalte einfügen, je nach Wunsch
+            # Zusätzlich Rendite p.a. als eigene Zeile
             kpi_rows.append(
                 {
                     "Depot": depot,
@@ -247,4 +241,3 @@ with tab2:
             )
     else:
         st.info("Noch keine Einträge vorhanden.")
-
