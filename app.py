@@ -19,7 +19,7 @@ credentials = ServiceAccountCredentials.from_json_keyfile_dict(service_account_i
 client = gspread.authorize(credentials)
 
 # Google Sheet öffnen per Sheet-ID
-SHEET_ID = "1QdIWos3OGLbeL-0LD3hUaVjcMs4vZj3XH6YHY6tdhZk"
+SHEET_ID = "https://docs.google.com/spreadsheets/d/1QdIWos3OGLbeL-0LD3hUaVjcMs4vZj3XH6YHY6tdhZk/edit?gid=0#gid=0"
 sheet = client.open_by_key(SHEET_ID).sheet1
 
 tab1, tab2 = st.tabs(["Eingabe", "Übersicht"])
