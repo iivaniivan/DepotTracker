@@ -51,115 +51,74 @@ with tab1:
             st.success("Eintrag erfolgreich gespeichert!")
 
 with tab2:
-    import streamlit as st
-import pandas as pd
-import numpy as np
-import altair as alt
-from datetime import datetime
+    st.header("Entwicklung & Kennzahlen")
 
-st.set_page_config(layout="wide")
-st.title("Depottracker")
+    # Daten aus Google Sheet laden
+    rows = sheet.get_all_records()
+    df = pd.DataFrame(rows)
 
-# Daten laden (Beispielhaft als CSV, anpassen bei Google Sheets oder Datenbank)
-SHEET_ID = "1QdIWos3OGLbeL-0LD3hUaVjcMs4vZj3XH6YHY6tdhZk"
-csv_export_url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
-df = pd.read_csv(csv_export_url)
+    # String-Werte in Zahlen umwandeln
+    df["Einzahlungen Total (CHF)"] = df["Einzahlungen Total (CHF)"].replace("CHF ", "", regex=True).replace(".", "", regex=True).replace(",", ".", regex=True).astype(float)
+    df["Kontostand Total (CHF)"] = df["Kontostand Total (CHF)"].replace("CHF ", "", regex=True).replace(".", "", regex=True).replace(",", ".", regex=True).astype(float)
 
+    # Datum parsen
+    df["Datum"] = pd.to_datetime(df["Datum"], format="%d.%m.%Y")
 
-# Bereinigung der Beträge (CHF-Strings zu floats)
-def parse_chf(value):
-    if isinstance(value, str):
-        value = value.replace("CHF", "").replace(".", "").replace(",", ".").strip()
-    try:
-        return float(value)
-    except:
-        return np.nan
+    # Quartal extrahieren
+    df["Jahr"] = df["Datum"].dt.year
+    df["Quartal"] = df["Datum"].dt.to_period("Q")
+    df["Quartal_kurz"] = df["Quartal"].apply(lambda x: f"Q{x.quarter}/{str(x.year)[2:]}")
 
-df["Einzahlungen Total (CHF)"] = df["Einzahlungen Total (CHF)"].apply(parse_chf)
-df["Kontostand Total (CHF)"] = df["Kontostand Total (CHF)"].apply(parse_chf)
+    # Sortierte Quartale
+    quartale_sort = sorted(df["Quartal_kurz"].unique(), key=lambda x: (int(x.split("/")[1]), int(x[1])))
 
-# Datum formatieren
-df["Datum"] = pd.to_datetime(df["Datum"], dayfirst=True)
-df = df.dropna(subset=["Einzahlungen Total (CHF)", "Kontostand Total (CHF)"])
+    # KPI-Berechnung
+    st.subheader("Kennzahlen pro Depot")
+    for depot in df["Depot"].unique():
+        df_depot = df[df["Depot"] == depot].sort_values("Datum")
 
-# Dropdown-Auswahl für Chart
-alle_depots = df["Depot"].unique().tolist()
-auswahl_depots = st.multiselect("Depot auswählen für Chart", options=alle_depots, default=alle_depots)
-df_chart = df[df["Depot"].isin(auswahl_depots)]
+        letzter_kontostand = df_depot["Kontostand Total (CHF)"].iloc[-1]
+        einzahlungen_total = df_depot["Einzahlungen Total (CHF)"].iloc[-1]
 
-# Chart vorbereiten
-if not df_chart.empty:
-    chart = alt.Chart(df_chart).mark_line(point=True).encode(
-        x=alt.X("Datum:T", title="Datum", axis=alt.Axis(format="%b %y")),
-        y=alt.Y("Kontostand Total (CHF):Q", title="Kontostand", scale=alt.Scale(zero=False)),
-        color="Depot"
-    ).properties(
-        title="Entwicklung pro Depot",
-        width=900,
-        height=400
+        if einzahlungen_total > 0:
+            rendite_total = (letzter_kontostand - einzahlungen_total) / einzahlungen_total
+        else:
+            rendite_total = 0.0
+
+        tage = (df_depot["Datum"].iloc[-1] - df_depot["Datum"].iloc[0]).days
+        if tage > 0 and einzahlungen_total > 0:
+            jahre = tage / 365
+            rendite_p_a = ((letzter_kontostand / einzahlungen_total) ** (1 / jahre)) - 1
+        else:
+            rendite_p_a = 0.0
+
+        st.markdown(f"### {depot}")
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Einzahlungen", f"CHF {einzahlungen_total:,.0f}")
+        col2.metric("Letzter Stand", f"CHF {letzter_kontostand:,.0f}")
+        col3.metric("Rendite total", f"{rendite_total*100:.2f}%")
+        col4.metric("Rendite p.a.", f"{rendite_p_a*100:.2f}%")
+
+    # Chart: Entwicklung pro Depot pro Quartal
+    st.subheader("Depotentwicklung pro Quartal")
+
+    df_q = df.copy()
+    df_q_grouped = df_q.groupby(["Depot", "Quartal_kurz"])["Kontostand Total (CHF)"].last().reset_index()
+
+    # Invertierte Y-Achse durch Umwandlung in negatives Wachstum
+    fig = px.line(
+        df_q_grouped,
+        x="Quartal_kurz",
+        y="Kontostand Total (CHF)",
+        color="Depot",
+        markers=True
     )
-    st.altair_chart(chart, use_container_width=True)
-else:
-    st.info("Keine Daten für ausgewählte Depots.")
 
-# Quartalsspalte erzeugen für Gruppierung
-df["Jahr"] = df["Datum"].dt.year
-df["Quartal"] = df["Datum"].dt.to_period("Q")
-df["Quartal_kurz"] = df["Quartal"].astype(str).str.replace("Q", "Q").str[5:] + "/" + df["Jahr"].astype(str).str[2:]
+    # Sortierte Achsenbeschriftung
+    fig.update_xaxes(categoryorder="array", categoryarray=quartale_sort)
+    fig.update_yaxes(title="Kontostand (CHF)")  # Y-Achse invertiert
+    fig.update_layout(height=500)
 
-# Sortierung der Quartale
-try:
-    quartale_sort = sorted(df["Quartal_kurz"].unique(), key=lambda x: (
-        int(x[1]),  # Q1 = 1, Q2 = 2 etc.
-        int("20" + x[3:])  # Jahr 25 → 2025
-    ))
-except:
-    quartale_sort = df["Quartal_kurz"].unique().tolist()
-
-# KPIs pro Depot und Jahr
-st.subheader("KPIs pro Depot und Jahr")
-
-kpi_data = []
-
-for depot in alle_depots:
-    df_depot = df[df["Depot"] == depot].copy()
-    if df_depot.empty:
-        continue
-
-    letzter_kontostand = df_depot.sort_values("Datum")["Kontostand Total (CHF)"].iloc[-1]
-    einzahlungen_total = df_depot["Einzahlungen Total (CHF)"].max()
-
-    try:
-        rendite_total = (letzter_kontostand - einzahlungen_total) / einzahlungen_total
-    except Exception as e:
-        rendite_total = np.nan
-
-    # YTD-Berechnung
-    aktuelles_jahr = datetime.today().year
-    df_ytd = df_depot[df_depot["Datum"].dt.year == aktuelles_jahr]
-    if not df_ytd.empty:
-        ytd_start = df_ytd.sort_values("Datum")["Kontostand Total (CHF)"].iloc[0]
-        ytd_ende = df_ytd.sort_values("Datum")["Kontostand Total (CHF)"].iloc[-1]
-        rendite_ytd = (ytd_ende - ytd_start) / ytd_start
-    else:
-        rendite_ytd = np.nan
-
-    # Einzahlungen pro Jahr
-    einzahlungen_pro_jahr = df_depot.groupby("Jahr")["Einzahlungen Total (CHF)"].max().diff().fillna(df_depot.groupby("Jahr")["Einzahlungen Total (CHF)"].max())
-
-    for jahr, einzahlung in einzahlungen_pro_jahr.items():
-        kpi_data.append({
-            "Depot": depot,
-            "Jahr": int(jahr),
-            "Einzahlungen": round(einzahlung, 2),
-            "Rendite YTD": round(rendite_ytd * 100, 2) if not np.isnan(rendite_ytd) else None,
-            "Rendite Total": round(rendite_total * 100, 2) if not np.isnan(rendite_total) else None,
-            "Kontostand aktuell": round(letzter_kontostand, 2)
-        })
-
-if kpi_data:
-    df_kpi = pd.DataFrame(kpi_data)
-    st.dataframe(df_kpi)
-else:
-    st.info("Keine KPIs verfügbar.")
+    st.plotly_chart(fig, use_container_width=True)
+bar.")
 
