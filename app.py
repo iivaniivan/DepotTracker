@@ -50,16 +50,49 @@ with tab1:
 
 with tab2:
     st.title("Depot Tracker Übersicht")
-    
+
     records = sheet.get_all_records()
     if records:
         df = pd.DataFrame(records)
-        df = df.sort_values(by="Datum", ascending=False)
+        df = df.sort_values(by="Datum", ascending=True)
         
-        st.write("Letzte 5 Einträge:")
-        st.dataframe(df.head(5))
+        # Datum in datetime konvertieren
+        df["Datum"] = pd.to_datetime(df["Datum"], format="%d.%m.%Y")
         
-        # Beispiel Chart
-        st.line_chart(df.head(10)[["Einzahlungen Total (CHF)", "Kontostand Total (CHF)"]])
+        # Auswahl Depot für Chart
+        depots_unique = df["Depot"].unique()
+        selected_depots = st.multiselect("Depot auswählen für Chart", depots_unique, default=depots_unique.tolist())
+        
+        if selected_depots:
+            df_chart = df[df["Depot"].isin(selected_depots)]
+            # Pivot für Linienchart: Index=Datum, Spalten=Depot, Werte=Kontostand
+            df_pivot = df_chart.pivot(index="Datum", columns="Depot", values="Kontostand Total (CHF)")
+            
+            st.line_chart(df_pivot)
+        
+        st.markdown("---")
+        st.header("KPIs pro Depot")
+        
+        for depot in depots_unique:
+            df_depot = df[df["Depot"] == depot].sort_values(by="Datum")
+            
+            einzahlungen_total = df_depot["Einzahlungen Total (CHF)"].sum()
+            letzter_kontostand = df_depot["Kontostand Total (CHF)"].iloc[-1]
+            erstes_datum = df_depot["Datum"].iloc[0]
+            letztes_datum = df_depot["Datum"].iloc[-1]
+            jahre = (letztes_datum - erstes_datum).days / 365.25
+            
+            rendite_total = (letzter_kontostand - einzahlungen_total) / einzahlungen_total if einzahlungen_total > 0 else 0
+            rendite_p_a = (1 + rendite_total) ** (1 / jahre) - 1 if jahre > 0 else 0
+            
+            st.subheader(depot)
+            st.write(f"**Letzter Kontostand:** CHF {letzter_kontostand:,.2f}")
+            st.write(f"**Total Einzahlungen:** CHF {einzahlungen_total:,.2f}")
+            st.write(f"**Rendite total:** {rendite_total*100:.2f} %")
+            st.write(f"**Rendite p.a.:** {rendite_p_a*100:.2f} %")
+            st.write(f"**Erster Eintrag:** {erstes_datum.date()}")
+            st.write(f"**Letzter Eintrag:** {letztes_datum.date()}")
+            st.markdown("---")
+            
     else:
         st.info("Noch keine Einträge vorhanden.")
