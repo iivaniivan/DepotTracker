@@ -165,5 +165,5 @@ with tab2:
     "Einfache Rendite (%)": "{:.2f}%",
     "Rendite total (TWR) (%)": "{:.2f}%",
     "Rendite p.a. (TWR) (%)": "{:.2f}%"
-    }), width=900)
+    }), width=1500)
 
