@@ -106,7 +106,7 @@ with tab2:
     # Chart: Entwicklung pro Depot pro Quartal
     st.subheader("Depotentwicklung pro Quartal")
 
-  fig = px.line(
+    fig = px.line(
     df,
     x="Datum",
     y="Kontostand Total (CHF)",
