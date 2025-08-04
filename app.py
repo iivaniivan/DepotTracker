@@ -45,3 +45,35 @@ with st.form(key="depot_form"):
         # Neue Zeile in Google Sheet schreiben
         sheet.append_row([depot, datum_str, einzahlungen, kontostand])
         st.success("Eintrag erfolgreich gespeichert!")
+
+import pandas as pd
+
+# Letzte 5 Einträge anzeigen
+st.subheader("Letzte Einträge")
+
+# Alle Daten aus dem Sheet laden
+records = sheet.get_all_records()
+if records:
+    df = pd.DataFrame(records)
+    
+    # Neuste zuerst
+    df = df.sort_values(by="Datum", ascending=False)
+
+    # Nur die letzten 5 Einträge
+    latest_entries = df.head(5).reset_index(drop=True)
+
+    # Tabelle mit Lösch-Buttons
+    for index, row in latest_entries.iterrows():
+        col1, col2 = st.columns([5, 1])
+        with col1:
+            st.write(f"**{row['Depot']}** am {row['Datum']} – Einzahlung: CHF {row['Einzahlungen Total (CHF)']}, Kontostand: CHF {row['Kontostand Total (CHF)']}")
+        with col2:
+            if st.button("Löschen", key=f"delete_{index}"):
+                # Zeile im Original-DataFrame finden (wegen Sortierung)
+                original_index = df[df["Datum"] == row["Datum"]].index[0]
+                sheet.delete_rows(original_index + 2)  # +2: 1 für Header, 1 für 0-basierten Index
+                st.success("Eintrag gelöscht. Bitte Seite neu laden.")
+                st.stop()
+else:
+    st.info("Noch keine Einträge vorhanden.")
+
