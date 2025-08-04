@@ -71,6 +71,7 @@ with tab2:
     rows = sheet.get_all_records()
     df = pd.DataFrame(rows)
     st.write(df.columns.tolist())
+    df.columns = df.columns.str.strip()
 
 
     df["Einzahlungen Total (CHF)"] = pd.to_numeric(df["Einzahlungen Total (CHF)"])
