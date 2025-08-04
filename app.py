@@ -11,8 +11,8 @@ depots = ["3a Yvan – VZ","3a Yvan – Finpension","3a Vanessa - Frankly","ETF 
 with st.form(key="depot_form"):
     depot = st.selectbox("Depot auswählen", depots)
     datum = st.date_input("Datum auswählen")
-datum_schweizer_format = datum.strftime("%d-%m-%Y")  # TT-MM-JJJJ
-st.write("Datum im Schweizer Format:", datum_schweizer_format)
+    datum_schweizer_format = datum.strftime("%d-%m-%Y")  # TT-MM-JJJJ
+    st.write("Datum im Schweizer Format:", datum_schweizer_format)
     einzahlungen = st.number_input("Einzahlungen Total (CHF)", min_value=0.0, format="%.2f")
     kontostand = st.number_input("Kontostand Total (CHF)", min_value=0.0, format="%.2f")
 
