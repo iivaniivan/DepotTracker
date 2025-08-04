@@ -16,7 +16,7 @@ credentials = ServiceAccountCredentials.from_json_keyfile_dict(service_account_i
 client = gspread.authorize(credentials)
 
 # Google Sheet öffnen
-SHEET_NAME = "Depot Tracker"
+SHEET_NAME = "DepotTracker Daten"
 sheet = client.open(SHEET_NAME).sheet1
 
 # Streamlit UI
