@@ -159,7 +159,7 @@ with tab2:
     df_kpi.index = df_kpi.index + 1
 
     # Tabelle anzeigen
-    st.dataframe(df_kpi.style.format({
+    st.dataframe(df_kpi.style.format({...}), width=True)
         "Einzahlungen (CHF)": "{:,.0f}",
         "Letzter Stand (CHF)": "{:,.0f}",
         "Einfache Rendite (%)": "{:.2f}%",
