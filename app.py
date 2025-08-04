@@ -160,9 +160,9 @@ with tab2:
 
     # Tabelle anzeigen
     st.dataframe(df_kpi.style.format({...}), width=True)
-        "Einzahlungen (CHF)": "{:,.0f}",
-        "Letzter Stand (CHF)": "{:,.0f}",
-        "Einfache Rendite (%)": "{:.2f}%",
-        "Rendite total (TWR) (%)": "{:.2f}%",
-        "Rendite p.a. (TWR) (%)": "{:.2f}%"
+    "Einzahlungen (CHF)": "{:,.0f}",
+    "Letzter Stand (CHF)": "{:,.0f}",
+    "Einfache Rendite (%)": "{:.2f}%",
+    "Rendite total (TWR) (%)": "{:.2f}%",
+    "Rendite p.a. (TWR) (%)": "{:.2f}%"
     }))
