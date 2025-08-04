@@ -103,24 +103,35 @@ with tab2:
         col3.metric("Rendite total", f"{rendite_total*100:.2f}%")
         col4.metric("Rendite p.a.", f"{rendite_p_a*100:.2f}%")
 
-    # Chart: Entwicklung pro Depot pro Quartal
-    st.subheader("Depotentwicklung pro Quartal")
+    #import pandas as pd
+import plotly.express as px
 
-    fig = px.line(
+# Datum konvertieren und sortieren
+df['Datum'] = pd.to_datetime(df['Datum'], format="%d.%m.%Y", errors='coerce')
+df = df.sort_values(by='Datum')
+
+# Optional: Quartals-Spalte erzeugen, falls gewünscht
+df['Quartal'] = df['Datum'].dt.to_period('Q').astype(str)
+
+# Chart erstellen
+fig = px.line(
     df,
-    x="Datum",
-    y="Kontostand Total (CHF)",
-    color="Depot",
-    markers=True
+    x="Datum",            # exaktes Datum (nicht nur Quartal)
+    y="Kontostand Total (CHF)",        # <-- anpassen, falls deine Spalte anders heißt
+    color="Depot",    # <-- anpassen, falls du mehrere Depots vergleichst
+    markers=True,
 )
 
-fig.update_xaxes(
-    tickformat="%Y-Q%q",
-    dtick="M3",
-    ticklabelmode="period"
+# X-Achse formatieren: Quartale als Tick-Labels
+fig.update_layout(
+    xaxis=dict(
+        tickformat="%Y-Q%q",  # z. B. 2024-Q2
+        title="Datum"
+    ),
+    yaxis_title="Depotwert",
+    title="Depotentwicklung über Zeit",
+    hovermode="x unified"
 )
-
-fig.update_yaxes(title="Kontostand (CHF)")
-fig.update_layout(height=500)
 
 st.plotly_chart(fig, use_container_width=True)
+
