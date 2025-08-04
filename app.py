@@ -83,10 +83,14 @@ with tab2:
 
             # Chart mit Altair: Y-Achse invertieren + X-Achse nach Quartal (zeitlich sortiert)
             # Reihenfolge Quartale extrahieren und sortieren
-            quartale_sort = sorted(df_q["Quartal_kurz"].unique(), key=lambda x: (
-                int(x[2]),  # Q1=1, Q2=2, etc
-                int("20"+x[4:])  # Jahr 25 -> 2025
-            ))
+            quartale_sort = sorted(
+    df_q["Quartal_kurz"].unique(),
+    key=lambda x: (
+        int(x[1]),                # Q1/25 -> 1
+        int("20" + x[-2:])       # Q1/25 -> 2025
+    ),
+)
+
 
             chart = (
                 alt.Chart(df_q)
