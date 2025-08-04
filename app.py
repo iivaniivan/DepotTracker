@@ -21,18 +21,26 @@ st.title("Depot-Tracker 📈")
 
 tab1, tab2 = st.tabs(["Neue Werte eingeben", "Depotentwicklung & Kennzahlen"])
 
+# --- TAB 1: Nur Eingabe, keine Datei-Upload ---
 with tab1:
     st.header("Neue Werte erfassen")
-    uploaded_file = st.file_uploader("📤 CSV-Datei hochladen", type=["csv"])
-    if uploaded_file:
-        df_new = pd.read_csv(uploaded_file)
-        st.success("Datei erfolgreich geladen:")
-        st.write(df_new)
 
+    # Beispiel: Manuelle Eingabe von Daten (du kannst hier dein Eingabeformular anpassen)
+    depot = st.text_input("Depotname")
+    datum = st.date_input("Datum", datetime.date.today())
+    kontostand = st.number_input("Kontostand Total (CHF)", min_value=0.0, format="%.2f")
+    einzahlungen_total = st.number_input("Einzahlungen Total (CHF)", min_value=0.0, format="%.2f")
+
+    if st.button("Daten speichern"):
+        # Hier kannst du speichern, z.B. in einer Datenbank, Datei oder irgendwo anders
+        st.success(f"Wert für Depot '{depot}' am {datum} mit Kontostand CHF {kontostand} und Einzahlungen CHF {einzahlungen_total} wurde gespeichert.")
+        # Hinweis: Aktuell speichert das nichts persistent, das musst du noch implementieren.
+
+# --- TAB 2: Auswertung mit CSV-Upload ---
 with tab2:
     st.header("📊 Depotentwicklung & Kennzahlen")
 
-    uploaded_file = st.file_uploader("📤 CSV für Auswertung", type=["csv"], key="file2")
+    uploaded_file = st.file_uploader("📤 CSV für Auswertung hochladen", type=["csv"])
     if uploaded_file:
         df = pd.read_csv(uploaded_file, parse_dates=["Datum"])
         df["Datum"] = pd.to_datetime(df["Datum"])
