@@ -152,6 +152,9 @@ with tab2:
 
     # DataFrame aus Liste erzeugen
     df_kpi = pd.DataFrame(kpi_list)
+    
+    # Index bei 1 starten lassen
+    df_kpi.index = df_kpi.index + 1
 
     # Tabelle anzeigen
     st.dataframe(df_kpi.style.format({
