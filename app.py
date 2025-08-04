@@ -106,19 +106,20 @@ with tab2:
     # Chart: Entwicklung pro Depot pro Quartal
     st.subheader("Depotentwicklung pro Quartal")
 
-    df_q = df.copy()
-    df_q_grouped = df_q.groupby(["Depot", "Quartal_kurz"])["Kontostand Total (CHF)"].last().reset_index()
+  fig = px.line(
+    df,
+    x="Datum",
+    y="Kontostand Total (CHF)",
+    color="Depot",
+    markers=True
+)
 
-    fig = px.line(
-        df_q_grouped,
-        x="Quartal_kurz",
-        y="Kontostand Total (CHF)",
-        color="Depot",
-        markers=True
-    )
+fig.update_xaxes(
+    tickformat="%Y-Q%q",
+    dtick="M3",
+    ticklabelmode="period"
+)
 
-    # Sortierte Achsenbeschriftung
-    fig.update_xaxes(categoryorder="array", categoryarray=quartale_sort)
     fig.update_yaxes(title="Kontostand (CHF)")
     fig.update_layout(height=500)
 
