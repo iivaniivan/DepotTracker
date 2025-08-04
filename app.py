@@ -76,7 +76,7 @@ with tab2:
     # Sortierte Quartale (optional)
     quartale_sort = sorted(df["Quartal_kurz"].unique(), key=lambda x: (int(x.split("/")[1]), int(x[1])))
 
-        st.subheader("📊 Kompakte Kennzahlenübersicht")
+    st.subheader("📊 Kompakte Kennzahlenübersicht")
 
     for depot in df["Depot"].unique():
         df_depot = df[df["Depot"] == depot].sort_values("Datum")
