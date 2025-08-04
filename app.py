@@ -50,100 +50,83 @@ with tab1:
             st.success("Eintrag erfolgreich gespeichert!")
 
 with tab2:
-    st.header("Entwicklung & Kennzahlen")
+    st.header("Depotentwicklung über Zeit")
 
-    # Daten aus Google Sheet laden
+    # Daten laden
     rows = sheet.get_all_records()
     df = pd.DataFrame(rows)
 
-    # Falls Spalten als Zahl formatiert sind, sind sie schon float, sonst ggf. casten
-    # Wenn Spalten schon numerisch sind, brauchst du keine Umwandlung
-    # Nur falls du Strings hast, dann so:
-    try:
-        df["Einzahlungen Total (CHF)"] = pd.to_numeric(df["Einzahlungen Total (CHF)"])
-        df["Kontostand Total (CHF)"] = pd.to_numeric(df["Kontostand Total (CHF)"])
-    except Exception:
-        pass
-
-    # Datum parsen
+    df["Einzahlungen Total (CHF)"] = pd.to_numeric(df["Einzahlungen Total (CHF)"])
+    df["Kontostand Total (CHF)"] = pd.to_numeric(df["Kontostand Total (CHF)"])
     df["Datum"] = pd.to_datetime(df["Datum"], format="%d.%m.%Y")
 
-    # Quartal extrahieren
-    df["Jahr"] = df["Datum"].dt.year
-    df["Quartal"] = df["Datum"].dt.to_period("Q")
-    df["Quartal_kurz"] = df["Quartal"].apply(lambda x: f"Q{x.quarter}/{str(x.year)[2:]}")
+    # Sortieren nach Datum
+    df = df.sort_values(by="Datum")
+    df["Quartal"] = df["Datum"].dt.to_period("Q").astype(str)
 
-    # Sortierte Quartale (optional)
-    quartale_sort = sorted(df["Quartal_kurz"].unique(), key=lambda x: (int(x.split("/")[1]), int(x[1])))
+    # Chart
+    fig = px.line(
+        df,
+        x="Datum",
+        y="Kontostand Total (CHF)",
+        color="Depot",
+        markers=True,
+    )
 
-    st.subheader("📊 Kompakte Kennzahlenübersicht")
+    fig.update_layout(
+        xaxis=dict(tickformat="%Y-%m", title="Datum"),
+        yaxis_title="Depotwert",
+        title="",
+        hovermode="x unified"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    # KPIs
+    st.subheader("Kennzahlen pro Depot")
 
     for depot in df["Depot"].unique():
         df_depot = df[df["Depot"] == depot].sort_values("Datum")
-        letzter_kontostand = df_depot["Kontostand Total (CHF)"].iloc[-1]
-        einzahlungen_total = df_depot["Einzahlungen Total (CHF)"].iloc[-1]
 
-        if einzahlungen_total > 0:
-            rendite_total = (letzter_kontostand - einzahlungen_total) / einzahlungen_total
+        # Einzahlung je Zeile berechnen
+        df_depot["Einzahlung pro Zeile"] = df_depot["Einzahlungen Total (CHF)"].diff().fillna(df_depot["Einzahlungen Total (CHF)"])
+
+        # Zeitgewichtete Rendite berechnen
+        renditefaktoren = []
+        for i in range(1, len(df_depot)):
+            start = df_depot.iloc[i - 1]
+            end = df_depot.iloc[i]
+
+            # Kapitalwert zu Beginn des Zeitraums (inkl. neuer Einzahlung)
+            kapital_anfang = start["Kontostand Total (CHF)"] + end["Einzahlung pro Zeile"]
+            kapital_ende = end["Kontostand Total (CHF)"]
+
+            if kapital_anfang > 0:
+                faktor = kapital_ende / kapital_anfang
+                renditefaktoren.append(faktor)
+
+        # Gesamtrendite (zeitgewichtet)
+        if renditefaktoren:
+            twr = 1
+            for f in renditefaktoren:
+                twr *= f
+            rendite_total = twr - 1
         else:
             rendite_total = 0.0
 
+        # Annualisierte Rendite berechnen
         tage = (df_depot["Datum"].iloc[-1] - df_depot["Datum"].iloc[0]).days
-        jahre = tage / 365 if tage > 0 else 0
-        rendite_p_a = ((letzter_kontostand / einzahlungen_total) ** (1 / jahre)) - 1 if jahre > 0 and einzahlungen_total > 0 else 0.0
+        jahre = tage / 365.25 if tage > 0 else 1
 
-        with st.expander(f"📈 {depot}"):
-            col1, col2, col3, col4 = st.columns(4)
-            col1.metric("Einzahlungen", f"CHF {einzahlungen_total:,.0f}")
-            col2.metric("Letzter Stand", f"CHF {letzter_kontostand:,.0f}")
-            col3.metric("Rendite total", f"{rendite_total*100:.2f}%")
-            col4.metric("Rendite p.a.", f"{rendite_p_a*100:.2f}%")
+        rendite_p_a = (1 + rendite_total) ** (1 / jahre) - 1 if jahre > 0 else 0
 
-            # 🧮 Jahresrenditen
-            df_depot['Jahr'] = df_depot['Datum'].dt.year
-            jahres_renditen = []
-            for jahr in sorted(df_depot['Jahr'].unique()):
-                df_jahr = df_depot[df_depot['Jahr'] == jahr]
-                startwert = df_jahr["Kontostand Total (CHF)"].iloc[0]
-                endwert = df_jahr["Kontostand Total (CHF)"].iloc[-1]
-                if startwert > 0:
-                    rendite = (endwert - startwert) / startwert
-                else:
-                    rendite = 0.0
-                jahres_renditen.append({"Jahr": jahr, "Rendite p.a.": f"{rendite*100:.2f}%"})
+        # Aktueller Stand
+        letzter_kontostand = df_depot["Kontostand Total (CHF)"].iloc[-1]
+        einzahlungen_total = df_depot["Einzahlungen Total (CHF)"].iloc[-1]
 
-            st.markdown("**📅 Jahresrenditen:**")
-            st.table(pd.DataFrame(jahres_renditen))
-
-    #import pandas as pd
-import plotly.express as px
-
-# Datum konvertieren und sortieren
-df['Datum'] = pd.to_datetime(df['Datum'], format="%d.%m.%Y", errors='coerce')
-df = df.sort_values(by='Datum')
-
-# Optional: Quartals-Spalte erzeugen, falls gewünscht
-df['Quartal'] = df['Datum'].dt.to_period('Q').astype(str)
-
-# Chart erstellen
-fig = px.line(
-    df,
-    x="Datum",            # exaktes Datum (nicht nur Quartal)
-    y="Kontostand Total (CHF)",        # <-- anpassen, falls deine Spalte anders heißt
-    color="Depot",    # <-- anpassen, falls du mehrere Depots vergleichst
-    markers=True,
-)
-
-# X-Achse formatieren: Quartale als Tick-Labels
-fig.update_layout(
-    xaxis=dict(
-        tickformat="%Y-Q%q",  # z. B. 2024-Q2
-        title="Datum"
-    ),
-    yaxis_title="Depotwert",
-    title="Depotentwicklung über Zeit",
-    hovermode="x unified"
-)
-
-st.plotly_chart(fig, use_container_width=True)
-
+        st.markdown(f"### {depot}")
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Einzahlungen", f"CHF {einzahlungen_total:,.0f}")
+        col2.metric("Letzter Stand", f"CHF {letzter_kontostand:,.0f}")
+        col3.metric("Rendite total (TWR)", f"{rendite_total*100:.2f}%")
+        col4.metric("Rendite p.a. (TWR)", f"{rendite_p_a*100:.2f}%")
